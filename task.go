@@ -28,8 +28,25 @@ func (t Task) Final(f func()) Task {
 	return t
 }
 
-func ExecuteTask(ctx context.Context, task Task) {
-	err := task.execute(ctx)
+// func ExecuteTask(ctx context.Context, task Task) {
+// 	err := task.execute(ctx)
+// 	if err == nil {
+// 		if task.success != nil {
+// 			task.success()
+// 		}
+// 	} else {
+// 		if task.fail != nil {
+// 			task.fail(err)
+// 		}
+// 	}
+// 	if task.final != nil {
+// 		task.final()
+// 	}
+// }
+
+func ExecuteTask(g *Goroutine, task Task) {
+	defer g.Pool.wg.Done()
+	err := task.execute(g.ctx)
 	if err == nil {
 		if task.success != nil {
 			task.success()

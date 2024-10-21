@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/0x9n0p/pooli"
 )
@@ -19,16 +18,19 @@ func main() {
 		go func(n int) {
 			p.SendTask(pooli.NewTask(func(ctx context.Context) error {
 				fmt.Println("task ", n)
-				<-time.Tick(time.Second * 1)
+				// <-time.Tick(time.Secos * 1)
 				return nil
 			}))
 		}(i)
 	}
 
-	<-time.Tick(time.Second * 3)
-	p.SetGoroutines(1)
+	p.TaskWait()
 
-	// p.Close()
+	// <-time.Tick(time.Second * 3)
+	// p.SetGoroutines(1)
 
-	select {}
+	p.Close()
+
+	fmt.Println("done")
+	// select {}
 }

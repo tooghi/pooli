@@ -10,7 +10,7 @@ func setupConfig(config Config, p *Pool) {
 
 	var goroutines []*Goroutine
 	for i := 0; i < config.Goroutines; i++ {
-		g := NewGoroutine(p.ctx, p.pipe)
+		g := NewGoroutine(p, p.pipe)
 
 		goroutines = append(goroutines, g)
 	}

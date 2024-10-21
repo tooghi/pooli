@@ -2,11 +2,12 @@ package pooli
 
 import (
 	"context"
+	"sync"
 )
 
 type Pool struct {
-	ctx context.Context
-
+	ctx        context.Context
+	wg         sync.WaitGroup
 	goroutines []*Goroutine
 	pipe       chan Task
 }
@@ -22,7 +23,12 @@ func Open(ctx context.Context, config Config) *Pool {
 }
 
 func (p *Pool) SendTask(task Task) {
+	p.wg.Add(1)
 	p.pipe <- task
+}
+
+func (p *Pool) TaskWait() {
+	p.wg.Wait()
 }
 
 func (p *Pool) Start() {
@@ -49,7 +55,7 @@ func (p *Pool) SetGoroutines(n int) {
 		}
 	} else {
 		for i := n; i < 0; i++ {
-			g := NewGoroutine(p.ctx, p.pipe)
+			g := NewGoroutine(p, p.pipe)
 			p.AddGoroutine(g)
 		}
 	}
