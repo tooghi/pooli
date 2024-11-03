@@ -3,26 +3,27 @@ package pooli
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 )
 
 type Goroutine struct {
-	status        Status
-	Pipe          chan Task
-
-	ctx context.Context
-	cnl context.CancelFunc
+	status Status
+	Pipe   chan Task
+	p      *Pool
+	ctx    context.Context
+	cnl    context.CancelFunc
 
 	m *sync.RWMutex
 }
 
-func NewGoroutine(ctx context.Context, pipe chan Task) *Goroutine {
-	ctx, cnl := context.WithCancel(ctx)
+func NewGoroutine(p *Pool) *Goroutine {
+	ctx, cnl := context.WithCancel(p.ctx)
 	return &Goroutine{
 		status: Idle,
-		Pipe:   pipe,
-
-		ctx: ctx,
-		cnl: cnl,
+		Pipe:   p.pipe,
+		p:      p,
+		ctx:    ctx,
+		cnl:    cnl,
 
 		m: new(sync.RWMutex),
 	}
@@ -41,7 +42,11 @@ func (g *Goroutine) Start() {
 			case t := <-g.Pipe:
 				g.SetStatus(Progress)
 				ExecuteTask(g.ctx, t)
+				if atomic.AddInt32(&g.p.sentTaskNum, -1) == 0 && len(g.p.pipe) == 0 { // all task done
+					g.p.done <- struct{}{}
+				}
 				g.SetStatus(Idle)
+
 			}
 		}
 	}()

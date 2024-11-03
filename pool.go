@@ -2,18 +2,21 @@ package pooli
 
 import (
 	"context"
+	"sync/atomic"
 )
 
 type Pool struct {
-	ctx context.Context
-
-	goroutines []*Goroutine
-	pipe       chan Task
+	ctx         context.Context
+	goroutines  []*Goroutine
+	pipe        chan Task
+	sentTaskNum int32         //current running task number
+	done        chan struct{} //used to notify wait goroutine to exit
 }
 
 func Open(ctx context.Context, config Config) *Pool {
 	p := &Pool{
-		ctx: ctx,
+		ctx:  ctx,
+		done: make(chan struct{}),
 	}
 
 	setupConfig(config, p)
@@ -22,6 +25,7 @@ func Open(ctx context.Context, config Config) *Pool {
 }
 
 func (p *Pool) SendTask(task Task) {
+	atomic.AddInt32(&p.sentTaskNum, 1)
 	p.pipe <- task
 }
 
@@ -49,7 +53,7 @@ func (p *Pool) SetGoroutines(n int) {
 		}
 	} else {
 		for i := n; i < 0; i++ {
-			g := NewGoroutine(p.ctx, p.pipe)
+			g := NewGoroutine(p)
 			p.AddGoroutine(g)
 		}
 	}
@@ -83,5 +87,15 @@ func (p *Pool) Close() {
 	for _, g := range p.goroutines {
 		p.RemoveGoroutine(g)
 		go g.Kill()
+	}
+}
+
+func (p *Pool) WaitTask() {
+	for {
+		<-p.done
+		if atomic.LoadInt32(&p.sentTaskNum) == 0 && len(p.pipe) == 0 {
+			return
+		}
+
 	}
 }
